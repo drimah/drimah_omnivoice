@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>OmniVoice — Clonagem e Criação de Vozes</title>
+<style>
+  :root{
+    --bg:#0f1117;
+    --panel:#171a23;
+    --panel-2:#1e2230;
+    --border:#2a2f3f;
+    --text:#eef0f6;
+    --muted:#9aa0b4;
+    --accent:#8b5cf6;
+    --accent-2:#a78bfa;
+    --accent-soft:rgba(139,92,246,.15);
+    --ok:#34d399;
+    --err:#f87171;
+    --radius:14px;
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:radial-gradient(1200px 600px at 20% -10%, #241a3a 0%, transparent 60%),
+               radial-gradient(1000px 500px at 100% 0%, #1a2438 0%, transparent 55%),
+               var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+  .wrap{max-width:980px;margin:0 auto}
+  header{margin-bottom:22px}
+  header h1{
+    font-size:1.7rem;margin:0 0 6px;
+    background:linear-gradient(90deg,#c4b5fd,#8b5cf6 60%,#60a5fa);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    font-weight:800;letter-spacing:-0.02em;
+  }
+  header p{margin:0;color:var(--muted);font-size:.95rem;line-height:1.5}
+  header a{color:var(--accent-2);text-decoration:none}
+  header a:hover{text-decoration:underline}
+
+  .status-bar{
+    display:flex;align-items:center;gap:8px;
+    margin-top:14px;padding:10px 14px;border-radius:10px;
+    background:var(--panel);border:1px solid var(--border);
+    font-size:.85rem;color:var(--muted);
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:#666;flex:0 0 auto}
+  .dot.connecting{background:#facc15;animation:pulse 1.2s infinite}
+  .dot.online{background:var(--ok)}
+  .dot.offline{background:var(--err)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .tabs{display:flex;gap:6px;margin:22px 0 16px;border-bottom:1px solid var(--border)}
+  .tab-btn{
+    background:none;border:none;color:var(--muted);font-size:.95rem;font-weight:600;
+    padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;
+    border-radius:8px 8px 0 0;transition:.15s;
+  }
+  .tab-btn:hover{color:var(--text);background:var(--panel)}
+  .tab-btn.active{color:var(--accent-2);border-bottom-color:var(--accent)}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--border);
+    border-radius:var(--radius);padding:22px;
+  }
+  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:22px}
+  @media(max-width:800px){.grid{grid-template-columns:1fr}}
+
+  label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin:14px 0 6px}
+  label:first-child{margin-top:0}
+  label .hint{font-weight:400;color:#6b7185;font-size:.78rem;display:block;margin-top:2px}
+
+  textarea,input[type=text],input[type=number],select{
+    width:100%;background:var(--panel-2);border:1px solid var(--border);
+    color:var(--text);border-radius:10px;padding:10px 12px;font-size:.92rem;
+    font-family:inherit;outline:none;transition:.15s;
+  }
+  textarea{resize:vertical;min-height:88px}
+  textarea:focus,input:focus,select:focus{border-color:var(--accent)}
+  select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239aa0b4' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+
+  .audio-drop{
+    border:1.5px dashed var(--border);border-radius:10px;padding:14px;
+    text-align:center;cursor:pointer;background:var(--panel-2);transition:.15s;
+  }
+  .audio-drop:hover{border-color:var(--accent)}
+  .audio-drop.has-file{border-style:solid;border-color:var(--accent)}
+  .audio-drop small{display:block;color:var(--muted);margin-top:4px;font-size:.76rem}
+  .rec-row{display:flex;gap:10px;margin-top:8px}
+  .btn-sm{
+    flex:1;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:999px;padding:9px 16px;font-size:.82rem;cursor:pointer;font-weight:600;
+    transition:.15s;
+  }
+  .btn-sm:hover{border-color:var(--accent)}
+  .btn-sm.rec-active{background:#3b1220;border-color:var(--err);color:#fca5a5}
+
+  details{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;margin-top:16px;padding:0 14px}
+  details summary{cursor:pointer;padding:12px 0;font-size:.86rem;font-weight:600;color:var(--text);list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary:before{content:"▸ ";color:var(--accent-2)}
+  details[open] summary:before{content:"▾ "}
+  details .inner{padding:2px 0 14px}
+
+  .attr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:500px){.attr-grid{grid-template-columns:1fr}}
+
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .checkline{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.85rem;color:var(--text)}
+  .checkline input{width:16px;height:16px;accent-color:var(--accent)}
+
+  input[type=range]{accent-color:var(--accent)}
+  .slider-val{float:right;color:var(--accent-2);font-weight:700}
+
+  .generate-btn{
+    width:100%;margin-top:20px;padding:13px 22px;border:none;border-radius:999px;
+    background:linear-gradient(90deg,#8b5cf6,#7c3aed);color:#fff;font-size:1rem;
+    font-weight:700;cursor:pointer;transition:.15s;box-shadow:0 6px 18px rgba(139,92,246,.25);
+  }
+  .generate-btn:hover{filter:brightness(1.08)}
+  .generate-btn:disabled{opacity:.55;cursor:wait}
+
+  #tab-clone > .grid{grid-template-columns:1fr;gap:18px}
+  .out-panel{display:flex;flex-direction:column;height:auto}
+  .out-box{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border:1px dashed var(--border);border-radius:14px;padding:24px;min-height:150px;
+    background:var(--panel-2);text-align:center;
+  }
+  .out-box.done{border-style:solid;border-color:var(--accent)}
+  audio{width:100%;margin-top:10px}
+  .status-line{margin-top:12px;font-size:.85rem;color:var(--muted);min-height:1.2em}
+  .status-line.err{color:var(--err)}
+  .status-line.ok{color:var(--ok)}
+  .progress-wrap{margin-top:12px}
+  .progress-head{display:flex;justify-content:space-between;gap:12px;font-size:.82rem;color:var(--muted);margin-bottom:7px}
+  .progress-bar{height:9px;background:var(--border);border-radius:999px;overflow:hidden}
+  .progress-fill{height:100%;width:4%;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#60a5fa);transition:width .35s ease}
+  .progress-fill.indeterminate{width:35%;animation:progressMove 1.25s ease-in-out infinite}
+  @keyframes progressMove{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+  .progress-log{
+    margin-top:10px;max-height:170px;overflow:auto;padding:11px 13px;
+    background:#11141c;border:1px solid var(--border);border-radius:12px;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.76rem;
+    line-height:1.55;text-align:left;color:#b9bfd0;
+  }
+  .progress-log .log-line{margin:0 0 3px}
+  .progress-log .log-line:last-child{color:var(--text)}
+  .progress-log .log-time{color:#737b91;margin-right:8px}
+  .download-btn{
+    margin-top:10px;display:inline-block;text-decoration:none;color:#fff;background:var(--panel-2);
+    font-size:.85rem;font-weight:600;border:1px solid var(--border);padding:9px 16px;border-radius:999px;
+  }
+  .download-btn:hover{border-color:var(--accent)}
+
+  footer{margin-top:28px;color:var(--muted);font-size:.78rem;line-height:1.6;text-align:center}
+  footer a{color:var(--accent-2);text-decoration:none}
+
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>OmniVoice — Clonagem &amp; Criação de Vozes</h1>
+    <p>Interface livre para o modelo <strong>OmniVoice</strong> (k2-fsa), TTS multilíngue com clonagem de voz zero-shot para 600+ idiomas.
+    Roda localmente no seu computador.
+    <span style="color:var(--muted)">O processamento acontece no seu próprio computador.</span></p>
+    <div class="status-bar">
+      <span id="statusDot" class="dot connecting"></span>
+      <span id="statusText">Conectando ao OmniVoice local…</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="clone">Clonagem de Voz</button>
+    <button class="tab-btn" data-tab="design">Criação de Voz (Design)</button>
+  </div>
+
+  <!-- ===================== TAB: VOICE CLONE ===================== -->
+  <section id="tab-clone" class="panel">
+    <div class="grid">
+      <div>
+        <label>Texto a sintetizar
+          <span class="hint">O texto que será falado com a voz clonada.</span>
+        </label>
+        <textarea id="c_text" placeholder="Digite o texto que você quer transformar em fala..."></textarea>
+
+        <label>Áudio de referência (a voz a ser clonada)
+          <span class="hint">Ideal: 3–10 segundos, sem ruído de fundo.</span>
+        </label>
+        <div id="c_dropzone" class="audio-drop">
+          <span id="c_dropLabel">Clique para escolher um arquivo de áudio</span>
+          <small>WAV, MP3, OGG, M4A…</small>
+        </div>
+        <input type="file" id="c_fileInput" accept="audio/*" style="display:none">
+        <div class="rec-row">
+          <button type="button" class="btn-sm" id="c_recBtn">Gravar pelo microfone</button>
+          <button type="button" class="btn-sm" id="c_clearBtn">Remover áudio</button>
+        </div>
+
+        <label>Idioma (opcional)
+          <span class="hint">Digite para buscar entre os 646 idiomas suportados. Deixe "Auto" para detectar sozinho.</span>
+        </label>
+        <input type="text" id="c_lang" list="langlist" value="Auto" autocomplete="off">
+
+        <details>
+          <summary>Instrução extra (opcional)</summary>
+          <div class="inner">
+            <textarea id="c_instruct" style="min-height:56px" placeholder="Ex: fale mais devagar, mais emotivo, sussurrando..."></textarea>
+          </div>
+        </details>
+
+        <details>
+          <summary>Configurações avançadas</summary>
+          <div class="inner">
+            <label>Velocidade <span class="slider-val" id="c_speedVal">1.0</span></label>
+            <input type="range" id="c_speed" min="0.5" max="1.5" step="0.05" value="1.0">
+            <label>Duração fixa em segundos (opcional)
+              <span class="hint">Deixe vazio para usar a velocidade acima.</span>
+            </label>
+            <input type="number" id="c_duration" placeholder="ex: 4.5" min="0" step="0.1">
+            <label>Passos de inferência <span class="slider-val" id="c_stepsVal">32</span></label>
+            <input type="range" id="c_steps" min="4" max="64" step="1" value="32">
+            <label>Guidance scale (CFG) <span class="slider-val" id="c_gsVal">2.0</span></label>
+            <input type="range" id="c_gs" min="0" max="4" step="0.1" value="2.0">
+            <div class="checkline"><input type="checkbox" id="c_denoise" checked><label style="margin:0">Remover ruído (denoise)</label></div>
+            <div class="checkline"><input type="checkbox" id="c_pp" checked><label style="margin:0">Pré-processar o áudio de referência</label></div>
+            <div class="checkline"><input type="checkbox" id="c_po" checked><label style="margin:0">Remover silêncios do resultado</label></div>
+          </div>
+        </details>
+
+        <button class="generate-btn" id="c_generate">Clonar Voz e Gerar Áudio</button>
+      </div>
+
+      <div class="out-panel">
+        <label>Resultado</label>
+        <div class="out-box" id="c_outBox"><span style="color:var(--muted);font-size:.85rem">O áudio gerado aparecerá aqui.</span></div>
+        <div class="status-line" id="c_status"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB: VOICE DESIGN ===================== -->
+  <section id="tab-design" class="panel" style="display:none">
+    <div class="grid">
+      <div>
+        <label>Texto a sintetizar</label>
+        <textarea id="d_text" placeholder="Digite o texto que você quer transformar em fala..."></textarea>
+
+        <label>Idioma (opcional)
+          <span class="hint">Digite para buscar entre os 646 idiomas suportados. Deixe "Auto" para detectar sozinho.</span>
+        </label>
+        <input type="text" id="d_lang" list="langlist" value="Auto" autocomplete="off">
+
+        <label style="margin-top:18px">Atributos da voz <span class="hint">Combine os que quiser — deixe "Auto" para ignorar um atributo.</span></label>
+        <div class="attr-grid">
+          <div><label style="margin:6px 0 4px">Gênero</label>
+            <select id="d_gender"><option value="Auto">Auto</option><option value="Male / 男">Masculino</option><option value="Female / 女">Feminino</option></select></div>
+          <div><label style="margin:6px 0 4px">Idade</label>
+            <select id="d_age"><option value="Auto">Auto</option><option value="Child / 儿童">Criança</option><option value="Teenager / 少年">Adolescente</option><option value="Young Adult / 青年">Jovem adulto</option><option value="Middle-aged / 中年">Meia-idade</option><option value="Elderly / 老年">Idoso</option></select></div>
+          <div><label style="margin:6px 0 4px">Tom de voz</label>
+            <select id="d_pitch"><option value="Auto">Auto</option><option value="Very Low Pitch / 极低音调">Muito grave</option><option value="Low Pitch / 低音调">Grave</option><option value="Moderate Pitch / 中音调">Moderado</option><option value="High Pitch / 高音调">Agudo</option><option value="Very High Pitch / 极高音调">Muito agudo</option></select></div>
+          <div><label style="margin:6px 0 4px">Estilo</label>
+            <select id="d_style"><option value="Auto">Auto</option><option value="Whisper / 耳语">Sussurrando</option></select></div>
+          <div><label style="margin:6px 0 4px">Sotaque (inglês)</label>
+            <select id="d_accent"><option value="Auto">Auto</option><option value="American Accent / 美式口音">Americano</option><option value="Australian Accent / 澳大利亚口音">Australiano</option><option value="British Accent / 英国口音">Britânico</option><option value="Chinese Accent / 中国口音">Chinês</option><option value="Canadian Accent / 加拿大口音">Canadense</option><option value="Indian Accent / 印度口音">Indiano</option><option value="Korean Accent / 韩国口音">Coreano</option><option value="Portuguese Accent / 葡萄牙口音">Português</option><option value="Russian Accent / 俄罗斯口音">Russo</option><option value="Japanese Accent / 日本口音">Japonês</option></select></div>
+          <div><label style="margin:6px 0 4px">Dialeto (chinês)</label>
+            <select id="d_dialect"><option value="Auto">Auto</option><option value="Henan Dialect / 河南话">Henan (河南话)</option><option value="Shaanxi Dialect / 陕西话">Shaanxi (陕西话)</option><option value="Sichuan Dialect / 四川话">Sichuan (四川话)</option><option value="Guizhou Dialect / 贵州话">Guizhou (贵州话)</option><option value="Yunnan Dialect / 云南话">Yunnan (云南话)</option><option value="Guilin Dialect / 桂林话">Guilin (桂林话)</option><option value="Jinan Dialect / 济南话">Jinan (济南话)</option><option value="Shijiazhuang Dialect / 石家庄话">Shijiazhuang (石家庄话)</option><option value="Gansu Dialect / 甘肃话">Gansu (甘肃话)</option><option value="Ningxia Dialect / 宁夏话">Ningxia (宁夏话)</option><option value="Qingdao Dialect / 青岛话">Qingdao (青岛话)</option><option value="Northeast Dialect / 东北话">Northeast (东北话)</option></select></div>
+        </div>
+
+        <details>
+          <summary>Configurações avançadas</summary>
+          <div class="inner">
+            <label>Velocidade <span class="slider-val" id="d_speedVal">1.0</span></label>
+            <input type="range" id="d_speed" min="0.5" max="1.5" step="0.05" value="1.0">
+            <label>Duração fixa em segundos (opcional)</label>
+            <input type="number" id="d_duration" placeholder="ex: 4.5" min="0" step="0.1">
+            <label>Passos de inferência <span class="slider-val" id="d_stepsVal">32</span></label>
+            <input type="range" id="d_steps" min="4" max="64" step="1" value="32">
+            <label>Guidance scale (CFG) <span class="slider-val" id="d_gsVal">2.0</span></label>
+            <input type="range" id="d_gs" min="0" max="4" step="0.1" value="2.0">
+            <div class="checkline"><input type="checkbox" id="d_denoise" checked><label style="margin:0">Remover ruído (denoise)</label></div>
+            <div class="checkline"><input type="checkbox" id="d_pp" checked><label style="margin:0">Pré-processar</label></div>
+            <div class="checkline"><input type="checkbox" id="d_po" checked><label style="margin:0">Remover silêncios do resultado</label></div>
+          </div>
+        </details>
+
+        <button class="generate-btn" id="d_generate">Criar Voz e Gerar Áudio</button>
+      </div>
+
+      <div class="out-panel">
+        <label>Resultado</label>
+        <div class="out-box" id="d_outBox">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.6"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span style="color:var(--muted);font-size:.85rem">O áudio gerado vai aparecer aqui</span>
+        </div>
+        <div class="status-line" id="d_status"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Este site apenas conecta ao Space público e gratuito
+    <a href="https://github.com/k2-fsa/OmniVoice" target="_blank" rel="noopener">k2-fsa/OmniVoice</a>
+    (ZeroGPU) — nenhum áudio passa por outro servidor. A lista de 646 idiomas foi extraída diretamente do
+    código-fonte oficial do projeto. Como é um Space compartilhado e gratuito, a "GPU" pode levar
+    alguns segundos para "acordar" na primeira geração, e pode haver fila em horários de pico.<br>
+    Use apenas vozes de pessoas que consentiram, para fins legítimos.
+  </footer>
+</div>
+
+<datalist id="langlist">
+  <option value="Auto">
+  <option value="Abadi">
+  <option value="Abkhazian">
+  <option value="Abron">
+  <option value="Abua">
+  <option value="Adamawa Fulfulde">
+  <option value="Adyghe">
+  <option value="Afade">
+  <option value="Afrikaans">
+  <option value="Agwagwune">
+  <option value="Aja (Benin)">
+  <option value="Akebu">
+  <option value="Alago">
+  <option value="Albanian">
+  <option value="Algerian Arabic">
+  <option value="Algerian Saharan Arabic">
+  <option value="Ambo-Pasco Quechua">
+  <option value="Ambonese Malay">
+  <option value="Amdo Tibetan">
+  <option value="Amharic">
+  <option value="Anaang">
+  <option value="Angika">
+  <option value="Antankarana Malagasy">
+  <option value="Aragonese">
+  <option value="Arbëreshë Albanian">
+  <option value="Arequipa-La Unión Quechua">
+  <option value="Armenian">
+  <option value="Ashe">
+  <option value="Ashéninka Perené">
+  <option value="Askopan">
+  <option value="Assamese">
+  <option value="Asturian">
+  <option value="Atayal">
+  <option value="Awak">
+  <option value="Ayacucho Quechua">
+  <option value="Azerbaijani">
+  <option value="Baatonum">
+  <option value="Bacama">
+  <option value="Bade">
+  <option value="Bafia">
+  <option value="Bafut">
+  <option value="Bagirmi Fulfulde">
+  <option value="Bago-Kusuntu">
+  <option value="Baharna Arabic">
+  <option value="Bakoko">
+  <option value="Balanta-Ganja">
+  <option value="Balti">
+  <option value="Bamenyam">
+  <option value="Bamun">
+  <option value="Bangwinji">
+  <option value="Banjar">
+  <option value="Bankon">
+  <option value="Baoulé">
+  <option value="Bara Malagasy">
+  <option value="Barok">
+  <option value="Basa (Cameroon)">
+  <option value="Basa (Nigeria)">
+  <option value="Bashkir">
+  <option value="Basque">
+  <option value="Batak Mandailing">
+  <option value="Batanga">
+  <option value="Bateri">
+  <option value="Bats">
+  <option value="Bayot">
+  <option value="Bebele">
+  <option value="Belarusian">
+  <option value="Bengali">
+  <option value="Betawi">
+  <option value="Bhili">
+  <option value="Bhojpuri">
+  <option value="Bilur">
+  <option value="Bima">
+  <option value="Bodo">
+  <option value="Boghom">
+  <option value="Bokyi">
+  <option value="Bomu">
+  <option value="Bondei">
+  <option value="Borgu Fulfulde">
+  <option value="Bosnian">
+  <option value="Brahui">
+  <option value="Braj">
+  <option value="Breton">
+  <option value="Buduma">
+  <option value="Buginese">
+  <option value="Bukharic">
+  <option value="Bulgarian">
+  <option value="Bulu (Cameroon)">
+  <option value="Bundeli">
+  <option value="Bunun">
+  <option value="Bura-Pabir">
+  <option value="Burak">
+  <option value="Burmese">
+  <option value="Burushaski">
+  <option value="Cacaloxtepec Mixtec">
+  <option value="Cajatambo North Lima Quechua">
+  <option value="Cakfem-Mushere">
+  <option value="Cameroon Pidgin">
+  <option value="Campidanese Sardinian">
+  <option value="Cantonese">
+  <option value="Catalan">
+  <option value="Cebuano">
+  <option value="Cen">
+  <option value="Central Kurdish">
+  <option value="Central Nahuatl">
+  <option value="Central Pame">
+  <option value="Central Pashto">
+  <option value="Central Puebla Nahuatl">
+  <option value="Central Tarahumara">
+  <option value="Central Yupik">
+  <option value="Central-Eastern Niger Fulfulde">
+  <option value="Chadian Arabic">
+  <option value="Chichewa">
+  <option value="Chichicapan Zapotec">
+  <option value="Chiga">
+  <option value="Chimalapa Zoque">
+  <option value="Chimborazo Highland Quichua">
+  <option value="Chinese">
+  <option value="Chiquián Ancash Quechua">
+  <option value="Chitwania Tharu">
+  <option value="Chokwe">
+  <option value="Chuvash">
+  <option value="Cibak">
+  <option value="Coastal Konjo">
+  <option value="Copainalá Zoque">
+  <option value="Cornish">
+  <option value="Corongo Ancash Quechua">
+  <option value="Croatian">
+  <option value="Cross River Mbembe">
+  <option value="Cuyamecalco Mixtec">
+  <option value="Czech">
+  <option value="Dadiya">
+  <option value="Dagbani">
+  <option value="Dameli">
+  <option value="Danish">
+  <option value="Dargwa">
+  <option value="Dazaga">
+  <option value="Deccan">
+  <option value="Degema">
+  <option value="Dera (Nigeria)">
+  <option value="Dghwede">
+  <option value="Dhatki">
+  <option value="Dhivehi">
+  <option value="Dhofari Arabic">
+  <option value="Dijim-Bwilim">
+  <option value="Dogri">
+  <option value="Domaaki">
+  <option value="Dotyali">
+  <option value="Duala">
+  <option value="Dutch">
+  <option value="DũYa">
+  <option value="Dyula">
+  <option value="Eastern Balochi">
+  <option value="Eastern Bolivian Guaraní">
+  <option value="Eastern Egyptian Bedawi Arabic">
+  <option value="Eastern Krahn">
+  <option value="Eastern Mari">
+  <option value="Eastern Yiddish">
+  <option value="Ebrié">
+  <option value="Eggon">
+  <option value="Egyptian Arabic">
+  <option value="Ejagham">
+  <option value="Eleme">
+  <option value="Eloyi">
+  <option value="Embu">
+  <option value="English">
+  <option value="Erzya">
+  <option value="Esan">
+  <option value="Esperanto">
+  <option value="Estonian">
+  <option value="Eton (Cameroon)">
+  <option value="Ewondo">
+  <option value="Extremaduran">
+  <option value="Fang (Equatorial Guinea)">
+  <option value="Fanti">
+  <option value="Farefare">
+  <option value="Fe'fe'">
+  <option value="Filipino">
+  <option value="Filomena Mata-Coahuitlán Totonac">
+  <option value="Finnish">
+  <option value="Fipa">
+  <option value="French">
+  <option value="Fulah">
+  <option value="Galician">
+  <option value="Gambian Wolof">
+  <option value="Ganda">
+  <option value="Garhwali">
+  <option value="Gawar-Bati">
+  <option value="Gawri">
+  <option value="Gbagyi">
+  <option value="Gbari">
+  <option value="Geji">
+  <option value="Gen">
+  <option value="Georgian">
+  <option value="German">
+  <option value="Geser-Gorom">
+  <option value="Gheg Albanian">
+  <option value="Ghomálá'">
+  <option value="Gidar">
+  <option value="Glavda">
+  <option value="Goan Konkani">
+  <option value="Goaria">
+  <option value="Goemai">
+  <option value="Gola">
+  <option value="Greek">
+  <option value="Guarani">
+  <option value="Guduf-Gava">
+  <option value="Guerrero Amuzgo">
+  <option value="Gujarati">
+  <option value="Gujari">
+  <option value="Gulf Arabic">
+  <option value="Gurgula">
+  <option value="Gusii">
+  <option value="Gusilay">
+  <option value="Gweno">
+  <option value="Güilá Zapotec">
+  <option value="Hadothi">
+  <option value="Hahon">
+  <option value="Haitian">
+  <option value="Hakha Chin">
+  <option value="Hakö">
+  <option value="Halia">
+  <option value="Hausa">
+  <option value="Hawaiian">
+  <option value="Hazaragi">
+  <option value="Hebrew">
+  <option value="Hemba">
+  <option value="Herero">
+  <option value="Highland Konjo">
+  <option value="Hijazi Arabic">
+  <option value="Hindi">
+  <option value="Huarijio">
+  <option value="Huautla Mazatec">
+  <option value="Huaxcaleca Nahuatl">
+  <option value="Huba">
+  <option value="Huitepec Mixtec">
+  <option value="Hula">
+  <option value="Hungarian">
+  <option value="Hunjara-Kaina Ke">
+  <option value="Hwana">
+  <option value="Ibibio">
+  <option value="Icelandic">
+  <option value="Idakho-Isukha-Tiriki">
+  <option value="Idoma">
+  <option value="Igbo">
+  <option value="Igo">
+  <option value="Ikposo">
+  <option value="Ikwere">
+  <option value="Imbabura Highland Quichua">
+  <option value="Indonesian">
+  <option value="Indus Kohistani">
+  <option value="Interlingua (International Auxiliary Language Association)">
+  <option value="Inupiaq">
+  <option value="Irish">
+  <option value="Iron Ossetic">
+  <option value="Isekiri">
+  <option value="Isoko">
+  <option value="Italian">
+  <option value="Ito">
+  <option value="Itzá">
+  <option value="Ixtayutla Mixtec">
+  <option value="Izon">
+  <option value="Jambi Malay">
+  <option value="Japanese">
+  <option value="Jaqaru">
+  <option value="Jauja Wanca Quechua">
+  <option value="Jaunsari">
+  <option value="Javanese">
+  <option value="Jiba">
+  <option value="Jju">
+  <option value="Judeo-Moroccan Arabic">
+  <option value="Juxtlahuaca Mixtec">
+  <option value="Kabardian">
+  <option value="Kabras">
+  <option value="Kabuverdianu">
+  <option value="Kabyle">
+  <option value="Kachi Koli">
+  <option value="Kairak">
+  <option value="Kalabari">
+  <option value="Kalasha">
+  <option value="Kalenjin">
+  <option value="Kalkoti">
+  <option value="Kamba">
+  <option value="Kamo">
+  <option value="Kanauji">
+  <option value="Kanembu">
+  <option value="Kannada">
+  <option value="Karekare">
+  <option value="Kashmiri">
+  <option value="Kathoriya Tharu">
+  <option value="Kati">
+  <option value="Kazakh">
+  <option value="Keiyo">
+  <option value="Khams Tibetan">
+  <option value="Khana">
+  <option value="Khetrani">
+  <option value="Khmer">
+  <option value="Khowar">
+  <option value="Kinga">
+  <option value="Kinnauri">
+  <option value="Kinyarwanda">
+  <option value="Kirghiz">
+  <option value="Kirya-Konzəl">
+  <option value="Kochila Tharu">
+  <option value="Kohistani Shina">
+  <option value="Kohumono">
+  <option value="Kok Borok">
+  <option value="Kol (Papua New Guinea)">
+  <option value="Kom (Cameroon)">
+  <option value="Koma">
+  <option value="Konkani">
+  <option value="Konzo">
+  <option value="Korean">
+  <option value="Korwa">
+  <option value="Kota (India)">
+  <option value="Koti">
+  <option value="Kuanua">
+  <option value="Kuanyama">
+  <option value="Kui (India)">
+  <option value="Kulung (Nigeria)">
+  <option value="Kuot">
+  <option value="Kushi">
+  <option value="Kwambi">
+  <option value="Kwasio">
+  <option value="Lala-Roba">
+  <option value="Lamang">
+  <option value="Lao">
+  <option value="Larike-Wakasihu">
+  <option value="Lasi">
+  <option value="Latgalian">
+  <option value="Latvian">
+  <option value="Levantine Arabic">
+  <option value="Liana-Seti">
+  <option value="Liberia Kpelle">
+  <option value="Liberian English">
+  <option value="Libyan Arabic">
+  <option value="Ligurian">
+  <option value="Lijili">
+  <option value="Lingala">
+  <option value="Lithuanian">
+  <option value="Loarki">
+  <option value="Logooli">
+  <option value="Logudorese Sardinian">
+  <option value="Loja Highland Quichua">
+  <option value="Loloda">
+  <option value="Longuda">
+  <option value="Loxicha Zapotec">
+  <option value="Luba-Lulua">
+  <option value="Luo">
+  <option value="Lushai">
+  <option value="Luxembourgish">
+  <option value="Maasina Fulfulde">
+  <option value="Maba (Chad)">
+  <option value="Macedo-Romanian">
+  <option value="Macedonian">
+  <option value="Mada (Cameroon)">
+  <option value="Mafa">
+  <option value="Maithili">
+  <option value="Malay">
+  <option value="Malayalam">
+  <option value="Mali">
+  <option value="Malinaltepec Me'phaa">
+  <option value="Maltese">
+  <option value="Mandara">
+  <option value="Mandjak">
+  <option value="Manggarai">
+  <option value="Manipuri">
+  <option value="Mansoanka">
+  <option value="Manx">
+  <option value="Maori">
+  <option value="Marathi">
+  <option value="Marghi Central">
+  <option value="Marghi South">
+  <option value="Maria (India)">
+  <option value="Marwari (Pakistan)">
+  <option value="Masana">
+  <option value="Masikoro Malagasy">
+  <option value="Matsés">
+  <option value="Mazaltepec Zapotec">
+  <option value="Mazatlán Mazatec">
+  <option value="Mazatlán Mixe">
+  <option value="Mbe">
+  <option value="Mbo (Cameroon)">
+  <option value="Mbum">
+  <option value="Medumba">
+  <option value="Mekeo">
+  <option value="Meru">
+  <option value="Mesopotamian Arabic">
+  <option value="Mewari">
+  <option value="Min Nan Chinese">
+  <option value="Mingrelian">
+  <option value="Mitlatongo Mixtec">
+  <option value="Miya">
+  <option value="Mokpwe">
+  <option value="Moksha">
+  <option value="Mom Jango">
+  <option value="Mongolian">
+  <option value="Moroccan Arabic">
+  <option value="Motu">
+  <option value="Mpiemo">
+  <option value="Mpumpong">
+  <option value="Mundang">
+  <option value="Mungaka">
+  <option value="Musey">
+  <option value="Musgu">
+  <option value="Musi">
+  <option value="Naba">
+  <option value="Najdi Arabic">
+  <option value="Nalik">
+  <option value="Nawdm">
+  <option value="Ndonga">
+  <option value="Neapolitan">
+  <option value="Nepali">
+  <option value="Ngamo">
+  <option value="Ngas">
+  <option value="Ngiemboon">
+  <option value="Ngizim">
+  <option value="Ngomba">
+  <option value="Ngombale">
+  <option value="Nigerian Fulfulde">
+  <option value="Nigerian Pidgin">
+  <option value="Nimadi">
+  <option value="Nobiin">
+  <option value="North Mesopotamian Arabic">
+  <option value="North Moluccan Malay">
+  <option value="Northern Betsimisaraka Malagasy">
+  <option value="Northern Hindko">
+  <option value="Northern Kurdish">
+  <option value="Northern Pame">
+  <option value="Northern Pashto">
+  <option value="Northern Uzbek">
+  <option value="Northwest Gbaya">
+  <option value="Norwegian">
+  <option value="Norwegian Bokmål">
+  <option value="Norwegian Nynorsk">
+  <option value="Notsi">
+  <option value="Nyankpa">
+  <option value="Nyungwe">
+  <option value="Nzanyi">
+  <option value="Nüpode Huitoto">
+  <option value="Occitan">
+  <option value="Od">
+  <option value="Odia">
+  <option value="Odual">
+  <option value="Omani Arabic">
+  <option value="Orizaba Nahuatl">
+  <option value="Orma">
+  <option value="Ormuri">
+  <option value="Oromo">
+  <option value="Pahari-Potwari">
+  <option value="Paiwan">
+  <option value="Panjabi">
+  <option value="Papuan Malay">
+  <option value="Parkari Koli">
+  <option value="Pedi">
+  <option value="Pero">
+  <option value="Persian">
+  <option value="Petats">
+  <option value="Phalura">
+  <option value="Piemontese">
+  <option value="Piya-Kwonci">
+  <option value="Plateau Malagasy">
+  <option value="Polish">
+  <option value="Poqomam">
+  <option value="Portuguese">
+  <option value="Pulaar">
+  <option value="Pular">
+  <option value="Puno Quechua">
+  <option value="Pushto">
+  <option value="Pökoot">
+  <option value="Qaqet">
+  <option value="Quiotepec Chinantec">
+  <option value="Rana Tharu">
+  <option value="Rangi">
+  <option value="Rapoisi">
+  <option value="Ratahan">
+  <option value="Rayón Zoque">
+  <option value="Romanian">
+  <option value="Romansh">
+  <option value="Rombo">
+  <option value="Rotokas">
+  <option value="Rukai">
+  <option value="Russian">
+  <option value="Sacapulteco">
+  <option value="Saidi Arabic">
+  <option value="Sakalava Malagasy">
+  <option value="Sakizaya">
+  <option value="Saleman">
+  <option value="Samba Daka">
+  <option value="Samba Leko">
+  <option value="San Felipe Otlaltepec Popoloca">
+  <option value="San Francisco Del Mar Huave">
+  <option value="San Juan Atzingo Popoloca">
+  <option value="San Martín Itunyoso Triqui">
+  <option value="San Miguel El Grande Mixtec">
+  <option value="Sansi">
+  <option value="Sanskrit">
+  <option value="Santa Ana de Tusi Pasco Quechua">
+  <option value="Santa Catarina Albarradas Zapotec">
+  <option value="Santali">
+  <option value="Santiago del Estero Quichua">
+  <option value="Saposa">
+  <option value="Saraiki">
+  <option value="Sardinian">
+  <option value="Saya">
+  <option value="Sediq">
+  <option value="Serbian">
+  <option value="Seri">
+  <option value="Shina">
+  <option value="Shona">
+  <option value="Siar-Lak">
+  <option value="Sibe">
+  <option value="Sicilian">
+  <option value="Sihuas Ancash Quechua">
+  <option value="Sikkimese">
+  <option value="Sinaugoro">
+  <option value="Sindhi">
+  <option value="Sindhi Bhil">
+  <option value="Sinhala">
+  <option value="Sinicahua Mixtec">
+  <option value="Sipacapense">
+  <option value="Siwai">
+  <option value="Slovak">
+  <option value="Slovenian">
+  <option value="Solos">
+  <option value="Somali">
+  <option value="Soninke">
+  <option value="South Giziga">
+  <option value="South Ucayali Ashéninka">
+  <option value="Southeastern Nochixtlán Mixtec">
+  <option value="Southern Betsimisaraka Malagasy">
+  <option value="Southern Pashto">
+  <option value="Southern Pastaza Quechua">
+  <option value="Soyaltepec Mazatec">
+  <option value="Spanish">
+  <option value="Standard Arabic">
+  <option value="Standard Moroccan Tamazight">
+  <option value="Sudanese Arabic">
+  <option value="Sulka">
+  <option value="Svan">
+  <option value="Swahili">
+  <option value="Swedish">
+  <option value="Tae'">
+  <option value="Tahaggart Tamahaq">
+  <option value="Taita">
+  <option value="Tajik">
+  <option value="Tamil">
+  <option value="Tandroy-Mahafaly Malagasy">
+  <option value="Tangale">
+  <option value="Tanosy Malagasy">
+  <option value="Tarok">
+  <option value="Tatar">
+  <option value="Tedaga">
+  <option value="Telugu">
+  <option value="Tem">
+  <option value="Teop">
+  <option value="Tepeuxila Cuicatec">
+  <option value="Tepinapa Chinantec">
+  <option value="Tera">
+  <option value="Terei">
+  <option value="Termanu">
+  <option value="Tesaka Malagasy">
+  <option value="Tetelcingo Nahuatl">
+  <option value="Teutila Cuicatec">
+  <option value="Thai">
+  <option value="Tibetan">
+  <option value="Tidaá Mixtec">
+  <option value="Tidore">
+  <option value="Tigak">
+  <option value="Tigre">
+  <option value="Tigrinya">
+  <option value="Tilquiapan Zapotec">
+  <option value="Tinputz">
+  <option value="Tlacoapa Me'phaa">
+  <option value="Tlacoatzintepec Chinantec">
+  <option value="Tlingit">
+  <option value="Toki Pona">
+  <option value="Tomoip">
+  <option value="Tondano">
+  <option value="Tonsea">
+  <option value="Tooro">
+  <option value="Torau">
+  <option value="Torwali">
+  <option value="Tsimihety Malagasy">
+  <option value="Tsotso">
+  <option value="Tswana">
+  <option value="Tugen">
+  <option value="Tuki">
+  <option value="Tula">
+  <option value="Tulu">
+  <option value="Tunen">
+  <option value="Tungag">
+  <option value="Tunisian Arabic">
+  <option value="Tupuri">
+  <option value="Turkana">
+  <option value="Turkish">
+  <option value="Turkmen">
+  <option value="Tututepec Mixtec">
+  <option value="Twi">
+  <option value="Ubaghara">
+  <option value="Uighur">
+  <option value="Ukrainian">
+  <option value="Umbundu">
+  <option value="Upper Sorbian">
+  <option value="Urdu">
+  <option value="Ushojo">
+  <option value="Uzbek">
+  <option value="Vai">
+  <option value="Vietnamese">
+  <option value="Votic">
+  <option value="Võro">
+  <option value="Waci Gbe">
+  <option value="Wadiyara Koli">
+  <option value="Waja">
+  <option value="Wakhi">
+  <option value="Wanga">
+  <option value="Wapan">
+  <option value="Warji">
+  <option value="Welsh">
+  <option value="Wemale">
+  <option value="Western Frisian">
+  <option value="Western Highland Purepecha">
+  <option value="Western Juxtlahuaca Mixtec">
+  <option value="Western Maninkakan">
+  <option value="Western Mari">
+  <option value="Western Niger Fulfulde">
+  <option value="Western Panjabi">
+  <option value="Wolof">
+  <option value="Wuzlam">
+  <option value="Xanaguía Zapotec">
+  <option value="Xhosa">
+  <option value="Yace">
+  <option value="Yakut">
+  <option value="Yalahatan">
+  <option value="Yanahuanca Pasco Quechua">
+  <option value="Yangben">
+  <option value="Yaqui">
+  <option value="Yauyos Quechua">
+  <option value="Yekhee">
+  <option value="Yiddish">
+  <option value="Yidgha">
+  <option value="Yoruba">
+  <option value="Yutanduchi Mixtec">
+  <option value="Zacatlán-Ahuacatlán-Tepetzintla Nahuatl">
+  <option value="Zarma">
+  <option value="Zaza">
+  <option value="Zulu">
+  <option value="Ömie">
+</datalist>
+
+<script type="module">
+const LOCAL_API = "http://127.0.0.1:8181";
+const VOICES_KEY = "drimah_omnivoice_voices_v1";
+let refAudioBlob = null;
+let recorder = null;
+let recChunks = [];
+let selectedVoice = null;
+
+const dot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
+function setConnState(state,msg){ dot.className="dot "+state; statusText.textContent=msg; }
+
+async function connect(){
+  setConnState("connecting","Conectando ao OmniVoice local…");
+  try{
+    const r=await fetch(LOCAL_API+"/status",{cache:"no-store"});
+    if(!r.ok) throw new Error();
+    const s=await r.json();
+    setConnState("online", s.device ? `OmniVoice local pronto — ${s.device}` : "OmniVoice local pronto");
+  }catch(e){
+    setConnState("offline","Servidor local ainda não iniciado. Tentando novamente…");
+    setTimeout(connect,2500);
+  }
+}
+connect();
+
+function voices(){
+  try{return JSON.parse(localStorage.getItem(VOICES_KEY)||"{}")}catch{return {}}
+}
+function saveVoices(v){localStorage.setItem(VOICES_KEY,JSON.stringify(v));}
+
+function ensureVoiceUI(){
+  const anchor=document.getElementById("c_lang");
+  if(!anchor) return;
+  const wrap=document.createElement("div");
+  wrap.id="drimahVoiceBox";
+  wrap.style.cssText="margin:14px 0 16px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--panel-2)";
+  wrap.innerHTML=`
+    <label style="margin-top:0">Voz salva</label>
+    <select id="drimahVoiceSelect" style="width:100%;padding:10px 12px;border-radius:999px;background:var(--panel);color:var(--text);border:1px solid var(--border)">
+      <option value="">Usar o áudio de referência carregado</option>
+    </select>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button type="button" class="btn-sm" id="drimahSaveVoice">Salvar esta voz</button>
+      <button type="button" class="btn-sm" id="drimahDeleteVoice">Excluir voz</button>
+    </div>
+    <div id="drimahVoiceMsg" class="hint" style="margin-top:8px">A referência é transcrita automaticamente apenas na primeira preparação.</div>`;
+  anchor.parentNode.insertBefore(wrap,anchor);
+  refreshVoiceList();
+  document.getElementById("drimahVoiceSelect").addEventListener("change",loadSelectedVoice);
+  document.getElementById("drimahSaveVoice").addEventListener("click",saveCurrentVoice);
+  document.getElementById("drimahDeleteVoice").addEventListener("click",deleteSelectedVoice);
+}
+function refreshVoiceList(){
+  const sel=document.getElementById("drimahVoiceSelect"); if(!sel)return;
+  const v=voices(); sel.innerHTML='<option value="">Usar o áudio de referência carregado</option>';
+  Object.keys(v).sort().forEach(n=>{const o=document.createElement("option");o.value=n;o.textContent=n;sel.appendChild(o)});
+}
+function blobToDataURL(blob){
+  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)});
+}
+async function dataURLToBlob(url){const r=await fetch(url);return await r.blob();}
+async function saveCurrentVoice(){
+  if(!refAudioBlob){alert("Carregue ou grave primeiro o áudio da voz.");return;}
+  const name=prompt("Nome para esta voz:","Maíra");
+  if(!name)return;
+  const msg=document.getElementById("drimahVoiceMsg");
+  msg.textContent="Preparando a voz. A transcrição da referência será feita automaticamente e somente uma vez.";
+  startProgress("Preparando voz");
+  try{
+    const audioData=await blobToDataURL(refAudioBlob);
+    const r=await fetch(LOCAL_API+"/prepare_voice",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({audio_base64:audioData.split(",")[1]})});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.detail||"Falha ao preparar a voz");
+    const v=voices();
+    v[name]={audio:audioData,voice_id:data.voice_id,language:document.getElementById("c_lang").value||"Auto"};
+    saveVoices(v); refreshVoiceList();
+    document.getElementById("drimahVoiceSelect").value=name;
+    selectedVoice=name;
+    msg.textContent=`${name} está salva e pronta para reutilização.`;
+    addProgressLog(`Voz "${name}" preparada e salva. Nenhuma nova transcrição será necessária.`);
+  }catch(e){
+    msg.textContent="Falha: "+e.message;
+    addProgressLog("Falha ao preparar a voz: "+e.message);
+  }finally{
+    stopProgress();
+  }
+}
+async function loadSelectedVoice(){
+  const name=document.getElementById("drimahVoiceSelect").value;
+  selectedVoice=name||null;
+  if(!name)return;
+  const item=voices()[name]; if(!item)return;
+  refAudioBlob=await dataURLToBlob(item.audio);
+  document.getElementById("c_dropLabel").textContent=`Voz carregada: ${name}`;
+  document.getElementById("drimahVoiceMsg").textContent=`Voz "${name}" pronta para reutilização.`;
+  addProgressLog(`Voz "${name}" selecionada. A referência já está preparada.`);
+}
+function deleteSelectedVoice(){
+  const sel=document.getElementById("drimahVoiceSelect"), name=sel.value;
+  if(!name)return;
+  const v=voices(); delete v[name]; saveVoices(v); selectedVoice=null; refreshVoiceList();
+  document.getElementById("drimahVoiceMsg").textContent="Voz excluída.";
+}
+ensureVoiceUI();
+
+// File selection / drag & drop
+const drop=document.getElementById("c_dropzone"), fileInput=document.getElementById("c_fileInput");
+function setAudio(file){
+  if(!file)return;
+  refAudioBlob=file;
+  document.getElementById("c_dropLabel").textContent=`${file.name}`;
+}
+drop.addEventListener("click",()=>fileInput.click());
+fileInput.addEventListener("change",e=>setAudio(e.target.files[0]));
+drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("drag")});
+drop.addEventListener("dragleave",()=>drop.classList.remove("drag"));
+drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("drag");setAudio(e.dataTransfer.files[0])});
+document.getElementById("c_clearBtn").onclick=()=>{refAudioBlob=null;fileInput.value="";document.getElementById("c_dropLabel").textContent="Clique para escolher um arquivo de áudio"};
+
+// Microphone
+document.getElementById("c_recBtn").onclick=async()=>{
+  if(recorder && recorder.state==="recording"){recorder.stop();return}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recChunks=[]; recorder=new MediaRecorder(stream);
+    recorder.ondataavailable=e=>{if(e.data.size)recChunks.push(e.data)};
+    recorder.onstop=()=>{stream.getTracks().forEach(t=>t.stop());setAudio(new Blob(recChunks,{type:"audio/webm"}));document.getElementById("c_dropLabel").textContent="Gravação carregada"};
+    recorder.start();
+    document.getElementById("c_recBtn").textContent="Parar gravação";
+  }catch(e){alert("Não foi possível acessar o microfone: "+e.message)}
+};
+
+// sliders
+for(const [id,val] of [["c_speed","c_speedVal"],["c_steps","c_stepsVal"],["c_gs","c_gsVal"],["d_speed","d_speedVal"],["d_steps","d_stepsVal"],["d_gs","d_gsVal"]]){
+  const a=document.getElementById(id),b=document.getElementById(val); if(a&&b)a.addEventListener("input",()=>b.textContent=a.value);
+}
+
+// Progress
+let progressTimer=null;
+let progressLogTimer=null;
+let progressStartedAt=0;
+let lastProgressMessage="";
+
+function addProgressLog(message){
+  const log=document.getElementById("c_progressLog");
+  if(!log || !message || message===lastProgressMessage)return;
+  lastProgressMessage=message;
+  const now=new Date();
+  const stamp=now.toLocaleTimeString("pt-BR",{hour12:false});
+  const line=document.createElement("div");
+  line.className="log-line";
+  line.innerHTML=`<span class="log-time">[${stamp}]</span>${escapeHtml(message)}`;
+  log.appendChild(line);
+  log.scrollTop=log.scrollHeight;
+}
+function escapeHtml(text){
+  return String(text).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+}
+async function poll(){
+  try{
+    const r=await fetch(LOCAL_API+"/progress",{cache:"no-store"});
+    const p=await r.json();
+    const fill=document.getElementById("c_progressFill");
+    const txt=document.getElementById("c_progressText");
+    if(fill){
+      fill.style.width=Math.max(3,Math.min(100,p.percent||3))+"%";
+      fill.classList.toggle("indeterminate",!!p.indeterminate);
+    }
+    if(txt)txt.textContent=p.message||"Processando…";
+    if(p.message)addProgressLog(p.message);
+  }catch{}
+}
+function startProgress(title="Processando"){
+  const s=document.getElementById("c_status");
+  s.className="status-line";
+  lastProgressMessage="";
+  progressStartedAt=Date.now();
+  s.innerHTML=`<div class="progress-wrap">
+    <div class="progress-head"><span id="c_progressText">${title}…</span><span id="c_progressElapsed">0 s</span></div>
+    <div class="progress-bar"><div id="c_progressFill" class="progress-fill" style="width:4%"></div></div>
+    <div id="c_progressLog" class="progress-log" aria-live="polite"></div>
+  </div>`;
+  addProgressLog(title+" iniciado.");
+  clearInterval(progressTimer);
+  clearInterval(progressLogTimer);
+  progressTimer=setInterval(poll,450);
+  progressLogTimer=setInterval(()=>{
+    const el=document.getElementById("c_progressElapsed");
+    if(el)el.textContent=`${((Date.now()-progressStartedAt)/1000).toFixed(0)} s`;
+  },250);
+  poll();
+}
+function stopProgress(){
+  clearInterval(progressTimer);progressTimer=null;
+  clearInterval(progressLogTimer);progressLogTimer=null;
+}
+
+document.getElementById("c_generate").onclick=async()=>{
+  const btn=document.getElementById("c_generate"), text=document.getElementById("c_text").value.trim();
+  if(!text){alert("Digite o texto que deseja transformar em voz.");return}
+  if(!refAudioBlob){alert("Escolha ou grave uma voz de referência ou selecione uma voz salva.");return}
+  btn.disabled=true;btn.textContent="Gerando…";startProgress("Geração do áudio");
+  addProgressLog(selectedVoice ? `Usando a voz salva "${selectedVoice}".` : "Usando o áudio de referência selecionado.");
+  addProgressLog("O texto foi enviado ao OmniVoice local.");
+  try{
+    const audioData=await blobToDataURL(refAudioBlob);
+    const saved=selectedVoice ? voices()[selectedVoice] : null;
+    const payload={
+      text,
+      audio_base64:audioData.split(",")[1],
+      voice_id:saved?.voice_id || null,
+      language:(document.getElementById("c_lang").value||"Auto").trim(),
+      num_steps:Math.max(10,Math.min(20,parseInt(document.getElementById("c_steps").value||20))),
+      guidance_scale:parseFloat(document.getElementById("c_gs").value||1.2)
+    };
+    addProgressLog("Verificando a referência de voz.");
+    const r=await fetch(LOCAL_API+"/synthesize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.detail||"Falha na geração");
+    addProgressLog("Síntese concluída. Preparando o arquivo WAV.");
+    const bytes=Uint8Array.from(atob(data.audio_base64),c=>c.charCodeAt(0));
+    const blob=new Blob([bytes],{type:"audio/wav"}), url=URL.createObjectURL(blob);
+    const box=document.getElementById("c_outBox");
+    box.classList.add("done");
+    box.innerHTML=`<audio controls style="width:100%" src="${url}"></audio><a class="btn-sm download-btn" download="drimah-omnivoice.wav" href="${url}">Salvar WAV</a>`;
+    document.getElementById("c_status").className="status-line ok";
+    document.getElementById("c_status").textContent=`Áudio pronto — ${Number(data.time_used||0).toFixed(1)} s de processamento.`;
+  }catch(e){
+    document.getElementById("c_status").className="status-line err";
+    document.getElementById("c_status").textContent="Falha: "+e.message;
+    addProgressLog("Falha na geração: "+e.message);
+  }finally{
+    stopProgress();btn.disabled=false;btn.textContent="Clonar Voz e Gerar Áudio";
+  }
+};
+
+// Design tab: keep the visual, but explain that this server is the cloning REST path.
+document.getElementById("d_generate").onclick=()=>alert("Esta versão usa o servidor REST de clonagem OmniVoice do ai-playground. A criação de voz por descrição ficará separada para não misturar motores.");
+</script>
+</body>
+</html>

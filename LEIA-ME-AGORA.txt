@@ -1,0 +1,29 @@
+DRIMAH OMNIVOICE TALKWITHME V3
+
+CORREÇÃO:
+A V2 tinha um erro de ordem no server.py: a rota /prepare_voice era
+declarada antes de app=FastAPI(). Isso causava:
+NameError: name 'app' is not defined
+
+A V3 corrige isso.
+
+Também:
+- / serve a interface;
+- /ui serve a interface;
+- /health e /status funcionam;
+- /prepare_voice prepara a voz uma única vez;
+- /synthesize reutiliza a voz salva;
+- nenhuma transcrição manual é necessária;
+- nenhum token é usado.
+
+IMPORTANTE:
+A primeira preparação de uma voz sem texto de referência usa a transcrição
+automática internamente. Isso ocorre somente na primeira preparação daquela
+voz. Depois o VoiceClonePrompt salvo em voices_cache é reutilizado.
+
+TESTE:
+1. Pare o servidor V2 com Ctrl+C.
+2. Extraia a V3.
+3. Não apague a pasta .venv nem os modelos já existentes.
+4. Inicie o servidor V3.
+5. Abra http://127.0.0.1:8181/ui

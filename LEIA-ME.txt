@@ -1,0 +1,20 @@
+DRIMAH OMNIVOICE REST LOCAL — V2
+
+Esta versão usa a arquitetura REST local baseada no ai-playground/TTS, mas remove a necessidade de digitar a transcrição da referência.
+
+COMO FUNCIONA
+1. Carregue uma referência de voz curta.
+2. Clique em Salvar esta voz e dê um nome.
+3. O OmniVoice faz a transcrição automaticamente apenas na primeira preparação.
+4. O VoiceClonePrompt é salvo em voices_cache/.
+5. Nas próximas gerações, a voz salva é carregada diretamente, sem Whisper e sem nova transcrição.
+
+A transcrição é interna e automática; você não precisa vê-la nem digitá-la.
+
+O campo antigo de transcrição fica oculto na interface.
+
+INICIAR
+Execute 2-INICIAR-DRIMAH-TALKWITHME.bat e abra:
+http://127.0.0.1:8181/ui
+
+Não use token e não abra o HTML diretamente.
