@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Drimah-OmniVoice — Clonagem e Criação de Vozes</title>
+<title>OmniVoice — Clonagem e Criação de Vozes</title>
 <style>
   :root{
     --bg:#0f1117;
@@ -156,10 +156,6 @@
     font-size:.85rem;font-weight:600;border:1px solid var(--border);padding:9px 16px;border-radius:999px;
   }
   .download-btn:hover{border-color:var(--accent)}
-  .audio-preview{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2)}
-  .audio-preview audio,.audio-preview video{display:block;width:100%;max-height:280px;border-radius:10px}
-  .save-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
-  .save-row select{padding:9px 14px;border-radius:999px;background:var(--panel-2);color:var(--text);border:1px solid var(--border)}
 
   footer{margin-top:28px;color:var(--muted);font-size:.78rem;line-height:1.6;text-align:center}
   footer a{color:var(--accent-2);text-decoration:none}
@@ -170,7 +166,7 @@
 <div class="wrap">
 
   <header>
-    <h1>Drimah-OmniVoice — Clonagem &amp; Criação de Vozes</h1>
+    <h1>OmniVoice — Clonagem &amp; Criação de Vozes</h1>
     <p>Interface livre para o modelo <strong>OmniVoice</strong> (k2-fsa), TTS multilíngue com clonagem de voz zero-shot para 600+ idiomas.
     Roda localmente no seu computador.
     <span style="color:var(--muted)">O processamento acontece no seu próprio computador.</span></p>
@@ -199,10 +195,9 @@
         </label>
         <div id="c_dropzone" class="audio-drop">
           <span id="c_dropLabel">Clique para escolher um arquivo de áudio</span>
-          <small>WAV, MP3, OGG, M4A, MP4…</small>
+          <small>WAV, MP3, OGG, M4A…</small>
         </div>
-        <input type="file" id="c_fileInput" accept="audio/*,.mp4,video/mp4" style="display:none">
-        <div id="c_audioPreview" class="audio-preview" style="display:none"></div>
+        <input type="file" id="c_fileInput" accept="audio/*" style="display:none">
         <div class="rec-row">
           <button type="button" class="btn-sm" id="c_recBtn">Gravar pelo microfone</button>
           <button type="button" class="btn-sm" id="c_clearBtn">Remover áudio</button>
@@ -327,7 +322,14 @@
     </div>
   </section>
 
-
+  <footer>
+    Esta interface conecta somente ao servidor OmniVoice local.
+    <a href="https://github.com/k2-fsa/OmniVoice" target="_blank" rel="noopener">k2-fsa/OmniVoice</a>
+    — o processamento e o áudio permanecem no seu computador. A lista de 646 idiomas foi extraída diretamente do
+    código-fonte oficial do projeto. Como é um Space compartilhado e gratuito, a "GPU" pode levar
+    alguns segundos para "acordar" na primeira geração, e pode haver fila em horários de pico.<br>
+    Use apenas vozes de pessoas que consentiram, para fins legítimos.
+  </footer>
 </div>
 
 <datalist id="langlist">
@@ -1099,28 +1101,17 @@ ensureVoiceUI();
 
 // File selection / drag & drop
 const drop=document.getElementById("c_dropzone"), fileInput=document.getElementById("c_fileInput");
-function showAudioPreview(file){
-  const box=document.getElementById("c_audioPreview");
-  if(!file){box.style.display="none";box.innerHTML="";return;}
-  const url=URL.createObjectURL(file);
-  const isMp4=file.type.includes("mp4") || /\.mp4$/i.test(file.name);
-  box.innerHTML=(isMp4
-    ? `<video controls preload="metadata" src="${url}"></video>`
-    : `<audio controls preload="metadata" src="${url}"></audio>`);
-  box.style.display="block";
-}
 function setAudio(file){
   if(!file)return;
   refAudioBlob=file;
   document.getElementById("c_dropLabel").textContent=`${file.name}`;
-  showAudioPreview(file);
 }
 drop.addEventListener("click",()=>fileInput.click());
 fileInput.addEventListener("change",e=>setAudio(e.target.files[0]));
 drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("drag")});
 drop.addEventListener("dragleave",()=>drop.classList.remove("drag"));
 drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("drag");setAudio(e.dataTransfer.files[0])});
-document.getElementById("c_clearBtn").onclick=()=>{refAudioBlob=null;fileInput.value="";document.getElementById("c_dropLabel").textContent="Clique para escolher um arquivo de áudio";showAudioPreview(null)};
+document.getElementById("c_clearBtn").onclick=()=>{refAudioBlob=null;fileInput.value="";document.getElementById("c_dropLabel").textContent="Clique para escolher um arquivo de áudio"};
 
 // Microphone
 document.getElementById("c_recBtn").onclick=async()=>{
@@ -1259,48 +1250,6 @@ function buildDesignInstruction(){
   }
   return [gender,age,pitch,style,accent].filter(v=>v&&v!=="Auto").join(", ");
 }
-async function loadLameJs(){
-  if(window.lamejs)return window.lamejs;
-  await new Promise((resolve,reject)=>{
-    const sc=document.createElement("script");
-    sc.src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js";
-    sc.onload=resolve; sc.onerror=()=>reject(new Error("Não foi possível carregar o codificador MP3."));
-    document.head.appendChild(sc);
-  });
-  if(!window.lamejs)throw new Error("Codificador MP3 indisponível.");
-  return window.lamejs;
-}
-async function wavBlobToMp3(wavBlob){
-  const arrayBuffer=await wavBlob.arrayBuffer();
-  const audioBuffer=await new AudioContext().decodeAudioData(arrayBuffer.slice(0));
-  const sampleRate=audioBuffer.sampleRate;
-  const channels=Math.min(2,audioBuffer.numberOfChannels);
-  const left=audioBuffer.getChannelData(0);
-  const right=channels>1?audioBuffer.getChannelData(1):left;
-  const lame=await loadLameJs();
-  const mp3enc=new lame.Mp3Encoder(channels,sampleRate,128);
-  const block=1152, out=[];
-  const l16=new Int16Array(block), r16=new Int16Array(block);
-  for(let i=0;i<left.length;i+=block){
-    const n=Math.min(block,left.length-i);
-    for(let j=0;j<n;j++){l16[j]=Math.max(-32768,Math.min(32767,left[i+j]*32767));r16[j]=Math.max(-32768,Math.min(32767,right[i+j]*32767));}
-    const buf=channels===2?mp3enc.encodeBuffer(l16.subarray(0,n),r16.subarray(0,n)):mp3enc.encodeBuffer(l16.subarray(0,n));
-    if(buf.length)out.push(new Int8Array(buf));
-  }
-  const end=mp3enc.flush(); if(end.length)out.push(new Int8Array(end));
-  return new Blob(out,{type:"audio/mpeg"});
-}
-async function saveGeneratedAudio(wavBlob,baseName,format){
-  const btn=document.getElementById("d_saveBtn");
-  try{
-    btn.disabled=true; btn.textContent=format==="mp3"?"Convertendo…":"Salvando…";
-    let blob=wavBlob, ext="wav";
-    if(format==="mp3"){blob=await wavBlobToMp3(wavBlob);ext="mp3";}
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`${baseName}.${ext}`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  }catch(e){alert("Não foi possível salvar em MP3: "+e.message);}finally{btn.disabled=false;btn.textContent="Salvar";}
-}
 document.getElementById("d_generate").onclick=async()=>{
   const btn=document.getElementById("d_generate");
   const text=document.getElementById("d_text").value.trim();
@@ -1332,12 +1281,7 @@ document.getElementById("d_generate").onclick=async()=>{
     const blob=new Blob([bytes],{type:"audio/wav"}), url=URL.createObjectURL(blob);
     const box=document.getElementById("d_outBox");
     box.classList.add("done");
-    box.innerHTML=`<audio controls style="width:100%" src="${url}"></audio>
-      <div class="save-row">
-        <button type="button" class="btn-sm download-btn" id="d_saveBtn">Salvar</button>
-        <select id="d_saveFormat" aria-label="Formato para salvar"><option value="wav">WAV</option><option value="mp3">MP3</option></select>
-      </div>`;
-    document.getElementById("d_saveBtn").onclick=()=>saveGeneratedAudio(blob,"drimah-voz-desenhada",document.getElementById("d_saveFormat").value);
+    box.innerHTML=`<audio controls style="width:100%" src="${url}"></audio><a class="btn-sm download-btn" download="drimah-voz-desenhada.wav" href="${url}">Salvar WAV</a>`;
     document.getElementById("d_status").className="status-line ok";
     document.getElementById("d_status").textContent=`Voz criada — ${Number(data.time_used||0).toFixed(1)} s de processamento.`;
   }catch(e){
